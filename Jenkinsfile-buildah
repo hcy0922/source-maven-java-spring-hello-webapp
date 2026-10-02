@@ -11,14 +11,14 @@ pipeline {
             command:
             - sleep
             args:
-            - infinity
+            - infinity 
           - name: buildah
             image: quay.io/buildah/stable:v1
             command:
             - sleep
             args:
             - infinity 
-	  securityContext:
+            securityContext:
               privileged: true
             volumeMounts:
             - name: registry-credentials
@@ -30,9 +30,15 @@ pipeline {
               items:
               - key: .dockerconfigjson
                 path: config.json
-
       ''' 
     }
+  }
+  environment {
+    REGISTRY    = 'docker.io'
+    USERNAME    = 'hcy0922'
+    IMAGE_NAME  = 'myapp'
+    DOCKERFILE  = 'Dockerfile'
+    IMAGE_TAG   = "${REGISTRY}/${USERNAME}/${IMAGE_NAME}"
   }
   stages {
     stage('Checkout') {
@@ -53,6 +59,23 @@ pipeline {
       steps {
         container('maven') {
           sh 'mvn clean package -DskipTests=true'
+        }
+      }
+    }
+    stage('Build Container Image') {
+      steps {
+        container('buildah') {
+          sh 'buildah build -f ${DOCKERFILE} -t ${IMAGE_TAG}:${BUILD_NUMBER} -t ${IMAGE_TAG}:latest .'
+        }
+      }
+    }
+    stage('Push Container Image') {
+      steps {
+        container('buildah') {
+          sh """
+            buildah push ${IMAGE_TAG}:${BUILD_NUMBER}
+            buildah push ${IMAGE_TAG}:latest
+          """
         }
       }
     }
